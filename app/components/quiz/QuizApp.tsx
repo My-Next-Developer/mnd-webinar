@@ -666,7 +666,8 @@ function ScreenRegister({
     if (!name) newErrors.name = true;
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       newErrors.email = true;
-    if (!wa) newErrors.whatsapp = true;
+    if (!wa || !/^(?:\+91|91)?[6-9]\d{9}$/.test(wa.replace(/\s/g, "")))
+      newErrors.whatsapp = true;
     if (!age) newErrors.age = true;
 
     for (const q of questions) {

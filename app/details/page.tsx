@@ -21,9 +21,9 @@ export default function DetailsPage() {
       <main className="flex-1">
         <Hero />
         <About />
-        <Pricing />
-        <BonusEbook />
         <Register />
+        <BonusEbook />
+        <Pricing />
         <Faq />
       </main>
       <Footer />
