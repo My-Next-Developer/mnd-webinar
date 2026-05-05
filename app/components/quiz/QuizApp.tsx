@@ -17,8 +17,8 @@ const CORRECT_ANSWER: "A" | "B" = "A";
 type Screen = 1 | 2 | 3 | 4;
 
 const aiPreviews = [
-  "/assets/ai-preview-5.jpg",
-  "/assets/ai-preview-6.jpg",
+  "/assets/ai-preview-5.png",
+  "/assets/ai-preview-6.png",
   "/assets/ai-preview-1.png",
   "/assets/ai-preview-2.png",
   "/assets/ai-preview-3.png",
@@ -266,10 +266,11 @@ function ScreenChoose({ onAnswer }: { onAnswer: (c: "A" | "B") => void }) {
             >
               <div className="relative aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-[#e8eef2] via-[#cfd9df] to-[#a9b8c1]">
                 <Image
-                  src={`/assets/option-${choice.toLowerCase()}.jpg`}
+                  src={`/assets/option-${choice.toLowerCase()}.png`}
                   alt={`Option ${choice}`}
                   fill
-                  sizes="(max-width: 480px) 50vw, 240px"
+                  sizes="(max-width: 480px) 50vw, (max-width: 1024px) 45vw, (max-width: 1320px) 560px, 640px"
+                  quality={100}
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               </div>
