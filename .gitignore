@@ -42,3 +42,6 @@ next-env.d.ts
 
 # design handoff source
 /.design-source/
+
+# claude code
+.claude/
