@@ -1,9 +1,10 @@
 # MND Webinar — AI for Every Woman
 
-Marketing site for MyNextDeveloper's "AI for Every Woman" live session. Two routes:
+Marketing site for MyNextDeveloper's "AI for Every Woman" live session. Three routes:
 
 - **`/`** — an interactive AI-spotting quiz that funnels visitors into the webinar.
 - **`/details`** — the full webinar landing page (hero, pricing, bonus ebook, registration, FAQ).
+- **`/confirmed`** — post-payment success page the quiz redirects to after Razorpay verification succeeds.
 
 ## Stack
 
@@ -11,13 +12,19 @@ Marketing site for MyNextDeveloper's "AI for Every Woman" live session. Two rout
 - [Tailwind CSS v4](https://tailwindcss.com/) with `@theme` design tokens
 - TypeScript (strict)
 - Google Fonts: Cormorant Garamond (serif headings) + DM Sans (body)
+- MongoDB (native driver) for registrations + payments
+- Razorpay Checkout for payments (test/live), with HMAC-verified server-side webhook
+- Google Sheets API (service account) for fire-and-forget registration row appends
 
 ## Getting started
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+cp .env.local.example .env.local   # then fill in Mongo / Razorpay / Google Sheets values
+npm run dev                        # http://localhost:3000
 ```
+
+Razorpay's webhook target must be a public HTTPS URL — for local dev, run `ngrok http 3000` and paste the tunnel URL into Razorpay Dashboard → Settings → Webhooks. See [`CLAUDE.md`](CLAUDE.md) for the full env-var table.
 
 Other scripts:
 
@@ -31,24 +38,28 @@ npm run lint         # eslint
 
 ```
 app/
-├─ layout.tsx              # root layout, fonts, metadata
+├─ layout.tsx              # root layout, fonts, metadata, Razorpay checkout script
 ├─ globals.css             # @theme tokens + small CSS utilities (animations, gradients)
-├─ page.tsx                # /   — AI-spotting quiz (entry point)
-├─ details/
-│  └─ page.tsx             # /details — full webinar landing
+├─ page.tsx                # /          — AI-spotting quiz (entry point)
+├─ details/page.tsx        # /details   — full webinar landing
+├─ confirmed/page.tsx      # /confirmed — post-payment success screen
+├─ api/
+│  ├─ register/route.ts        # insert registration (paymentStatus: pending)
+│  ├─ create-order/route.ts    # create Razorpay order + payments doc
+│  ├─ verify-payment/route.ts  # HMAC-verify success callback
+│  └─ webhook/route.ts         # Razorpay server-to-server events
 └─ components/
-   ├─ Nav.tsx              # sticky nav with WhatsApp CTA
-   ├─ Hero.tsx
-   ├─ About.tsx            # tools grid + "what you'll walk away with"
-   ├─ Pricing.tsx          # early-bird card + value stack
-   ├─ BonusEbook.tsx       # tilted ebook cover + perks
-   ├─ Register.tsx         # navy CTA card → Google Form
-   ├─ Faq.tsx              # accordion (client component)
-   ├─ Footer.tsx
-   ├─ Reveal.tsx           # IntersectionObserver fade-in wrapper
-   ├─ icons.tsx            # shared inline SVGs
-   └─ quiz/
-      └─ QuizApp.tsx       # 5-screen quiz state machine
+   ├─ Nav.tsx, Hero.tsx, About.tsx, Pricing.tsx, BonusEbook.tsx,
+   ├─ Register.tsx, Faq.tsx, Footer.tsx, Reveal.tsx, icons.tsx
+   └─ quiz/QuizApp.tsx     # 4-screen quiz state machine + Razorpay flow
+
+lib/
+├─ mongo.ts                # cached client + DBCollection enum + getDb()
+├─ razorpay.ts             # SDK singleton + signature verification
+├─ sheets.ts               # appendRegistrationRow with retry/backoff
+├─ validation.ts           # hand-rolled payload validators
+├─ errors.ts               # ApiError + jsonError helper
+└─ types.ts                # EventRegistration, Payment, etc.
 
 public/assets/             # logos, ebook cover, AI preview gallery, quiz images
 ```
@@ -72,8 +83,9 @@ All brand colors, fonts, radii, and shadows live in a single `@theme` block in [
 
 1. **Choose** — pick which of two images is AI-generated
 2. **Correct** / 3. **Wrong** — result + webinar info card grid + AI preview gallery + amber "Claim My Spot" CTA + "See full details →" link to `/details`
-4. **Register** — floating-label form with multi/single-pill questions + client validation
-5. **Confirm** — navy success screen with WhatsApp community link
+4. **Register** — floating-label form with multi/single-pill questions + client validation; on submit, runs `/api/register` → `/api/create-order` → Razorpay Checkout → `/api/verify-payment`, then `router.push("/confirmed")`
+
+The confirmation screen is its own route at [`/confirmed`](app/confirmed/page.tsx), not an in-app screen.
 
 The correct answer is configured at the top of `QuizApp.tsx`:
 
@@ -100,5 +112,6 @@ const CORRECT_ANSWER: "A" | "B" = "A";
 ## Notes
 
 - Fonts are loaded via a `<link>` tag in the root layout (Tailwind v4 + sandboxed CI builds can fail to fetch Google Fonts at build time via `next/font`).
-- Form submission on the quiz is currently client-side only — wire it to your backend / form service in `onSubmit` inside `ScreenRegister` ([`QuizApp.tsx`](app/components/quiz/QuizApp.tsx)).
+- The full register → pay → verify pipeline runs through the Route Handlers under [`app/api/`](app/api/); see [`CLAUDE.md`](CLAUDE.md) for endpoint contracts and the MongoDB schema.
+- Pending registrations and `created`-status payments accumulate from abandoned checkouts — there's no TTL cleanup yet.
 - The `/.design-source/` folder (gitignored) contains the original Claude Design HTML prototypes for reference.

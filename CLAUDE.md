@@ -17,39 +17,42 @@ There is no test runner configured.
 
 ## Architecture
 
-Two routes share one component library:
+Three routes share one component library:
 
 - **`/`** ([app/page.tsx](app/page.tsx)) — an interactive AI-spotting quiz that funnels visitors into the webinar.
 - **`/details`** ([app/details/page.tsx](app/details/page.tsx)) — the full marketing landing (Hero / About / Pricing / BonusEbook / Register / FAQ / Footer).
+- **`/confirmed`** ([app/confirmed/page.tsx](app/confirmed/page.tsx)) — post-payment success page that the quiz pushes to via `router.push` after `/api/verify-payment` returns success. Server-rendered, publicly reachable by URL (not gated).
 
-The quiz at `/` is the entry point. Its result screens link to `/details` via a "See full details →" anchor. Both routes are statically prerendered.
+The quiz at `/` is the entry point. Its result screens link to `/details` via a "See full details →" anchor.
 
 ### Quiz state machine
 
-[app/components/quiz/QuizApp.tsx](app/components/quiz/QuizApp.tsx) is a single `"use client"` component holding all 5 screens (Choose → Correct/Wrong → Register → Confirm). Screen transitions are local `useState`, not routes — there is no per-screen URL. The correct quiz answer is a module constant at the top of the file (`CORRECT_ANSWER`).
+[app/components/quiz/QuizApp.tsx](app/components/quiz/QuizApp.tsx) is a single `"use client"` component holding 4 in-app screens (Choose → Correct/Wrong → Register). Screen transitions are local `useState`, not routes — there is no per-screen URL. After a successful payment the component navigates to the `/confirmed` route (Next router push), not an inline screen. The correct quiz answer is a module constant at the top of the file (`CORRECT_ANSWER`).
 
-`ScreenRegister.onSubmit` runs the full register → pay → verify flow via SWR mutations: `POST /api/register` → `POST /api/create-order` → open Razorpay Checkout → `POST /api/verify-payment` in the checkout `handler` callback. The Razorpay key id is returned by `/api/create-order` (no `NEXT_PUBLIC_*` mirror needed). Email is required because the unique index and payment receipts depend on it.
+`ScreenRegister.onSubmit` runs the full register → pay → verify flow via SWR mutations: `POST /api/register` → `POST /api/create-order` → open Razorpay Checkout (with `prefill: { name, email, contact }`) → `POST /api/verify-payment` in the checkout `handler` callback → `router.push("/confirmed")`. The Razorpay key id is returned by `/api/create-order` (no `NEXT_PUBLIC_*` mirror needed). Email is required because the unique index and payment receipts depend on it.
 
 ### Backend API
 
 Route Handlers under [app/api/](app/api/) — all `runtime = "nodejs"` (Razorpay SDK + mongodb native driver are not edge-compatible).
 
 - `POST /api/register` — validates input, inserts into `event_registrations` with `paymentStatus: "pending"`. On duplicate `{email, eventId}` (E11000) returns the existing `registrationId` rather than 409 (idempotent for back-button users).
-- `POST /api/create-order` — creates a Razorpay order, inserts a `payments` doc with `status: "created"`, returns `{ orderId, amount, currency, keyId }` to the client.
-- `POST /api/verify-payment` — HMAC-SHA256 verifies `orderId|paymentId` against `razorpay_signature` using `crypto.timingSafeEqual`. On success: marks both collections `success`, fires `appendRegistrationRow` (fire-and-forget, never awaited).
+- `POST /api/create-order` — creates a Razorpay order (with `notes` carrying `registrationId`, `eventId`, `email`, `contact`, `name`), inserts a `payments` doc with `status: "created"`, returns `{ orderId, amount, currency, keyId }` to the client.
+- `POST /api/verify-payment` — HMAC-SHA256 verifies `orderId|paymentId` against `razorpay_signature` using `crypto.timingSafeEqual`. On success: marks both collections `success`, fires `appendRegistrationRow` (fire-and-forget, never awaited). The signature itself is *not* persisted — once verified it has no further use.
 - `POST /api/webhook` — reads the raw body via `await request.text()` *before* JSON.parse so the HMAC matches Razorpay's signed bytes; handles `payment.captured` and `payment.failed` idempotently (filtered updates with `$ne: "success"` so re-deliveries are no-ops).
 
 Shared logic lives in [lib/](lib/):
 
-- [lib/mongo.ts](lib/mongo.ts) — cached `MongoClient` on `globalThis` (survives Next dev HMR); `getDb()` lazily creates the unique index on `{ email, eventId }` and the index on `payments.orderId` once per process.
+- [lib/mongo.ts](lib/mongo.ts) — cached `MongoClient` on `globalThis` (survives Next dev HMR), exported as the default `clientPromise`. `getDb()` lazily creates the unique index on `{ email, eventId }` and the indexes on `payments` once per process. Collection names live in the exported `DBCollection` enum (`EVENT_REGISTRATIONS`, `PAYMENTS`) — call sites use `db.collection<T>(DBCollection.X)` directly; there are no per-collection helper functions.
 - [lib/razorpay.ts](lib/razorpay.ts) — singleton SDK + `verifyPaymentSignature` / `verifyWebhookSignature`.
 - [lib/sheets.ts](lib/sheets.ts) — `appendRegistrationRow` with 3-attempt exponential backoff (500/1500/4500ms); on final failure logs and returns — never throws to the API caller.
 - [lib/validation.ts](lib/validation.ts), [lib/errors.ts](lib/errors.ts), [lib/types.ts](lib/types.ts) — hand-rolled validators (no `zod`), `ApiError` + `jsonError` helper, shared types.
 
-MongoDB collections:
+MongoDB collections (names referenced via `DBCollection` enum in [lib/mongo.ts](lib/mongo.ts)):
 
 - `event_registrations`: unique index on `{ email: 1, eventId: 1 }`. Stores name, email, phone, eventId, age, surveyAnswers, paymentStatus.
 - `payments`: unique index on `orderId`, index on `registrationId`. References registration via ObjectId.
+
+Pending registrations and `created`-status payments accumulate from abandoned checkouts — there is no TTL cleanup yet.
 
 ### Environment variables
 
@@ -57,7 +60,7 @@ Copy [.env.local.example](.env.local.example) → `.env.local` (gitignored). Req
 
 | Var | Purpose |
 | --- | --- |
-| `MONGODB_URI`, `MONGODB_DB` | Mongo connection. `MONGODB_DB` defaults to `mnd_webinar`. |
+| `MONGODB_URI`, `DB_NAME` | Mongo connection. Both are required — [lib/mongo.ts](lib/mongo.ts) throws at import if either is missing. |
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Razorpay test/live API key pair (Dashboard → Settings → API Keys). |
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook secret (Dashboard → Settings → Webhooks). |
 | `GOOGLE_SHEET_ID`, `GOOGLE_SHEET_TAB` | Target spreadsheet (share with the service account email as Editor). |

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Footer } from "./components/Footer";
 import { QuizApp } from "./components/quiz/QuizApp";
 
 export const metadata: Metadata = {
@@ -9,8 +10,11 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <div className="flex min-h-screen flex-1 items-stretch justify-center bg-[#faf7f2]">
-      <QuizApp />
+    <div className="flex min-h-screen flex-col bg-[#faf7f2]">
+      <div className="flex flex-1 items-stretch justify-center">
+        <QuizApp />
+      </div>
+      <Footer />
     </div>
   );
 }

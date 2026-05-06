@@ -185,3 +185,13 @@ body {
 .faq-answer > div {
   overflow: hidden;
 }
+
+.link {
+  color: var(--color-teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+.link:hover {
+  color: var(--color-navy);
+}

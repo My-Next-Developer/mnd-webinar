@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Ashwin/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/76eb5854-4a28-4e4f-a3d2-3cd25c2b41da/524aa421-2905-4eab-9b0b-906de90fbcbd/skills/docx/**)",
+      "Bash(python scripts/office/unpack.py \"C:/Users/Ashwin/Downloads/MND_Privacy_Policy_Compiled_May2026.docx\" \"C:/Users/Ashwin/AppData/Local/Temp/mnd_policy_unpacked\")",
+      "Bash(python -c ' *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

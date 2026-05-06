@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Footer } from "../components/Footer";
 
 const WHATSAPP_COMMUNITY_URL =
   "https://chat.whatsapp.com/LLrVLgeEjFYFZxzygp7tyA";
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 
 export default function ConfirmedPage() {
   return (
-    <section className="min-h-screen bg-navy px-6 pb-7 pt-10 text-white md:px-10 md:py-16">
+    <>
+    <section className="flex-1 bg-navy px-6 pb-7 pt-10 text-white md:px-10 md:py-16">
       <div
         className="mx-auto flex max-w-[520px] flex-col items-start gap-[18px] md:max-w-[640px] md:gap-6"
         style={{ paddingTop: "12vh" }}
@@ -50,5 +52,7 @@ export default function ConfirmedPage() {
         </p>
       </div>
     </section>
+    <Footer />
+    </>
   );
 }
