@@ -3,7 +3,6 @@ import { getDb, DBCollection } from "@/lib/mongo";
 import { ApiError, jsonError } from "@/lib/errors";
 import { verifyPaymentSignature } from "@/lib/razorpay";
 import { parseVerifyPayload } from "@/lib/validation";
-import { appendRegistrationRow } from "@/lib/sheets";
 import type { EventRegistration, Payment } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
       }
     );
     await regCol.updateOne(
-      { _id: payment.registrationId },
+      { _id: payment.registrationId, paymentStatus: { $ne: "success" } },
       {
         $set: {
           paymentStatus: "success",
@@ -65,15 +64,6 @@ export async function POST(request: Request) {
         },
       }
     );
-
-    const updatedReg = await regCol.findOne({ _id: payment.registrationId });
-    if (updatedReg) {
-      void appendRegistrationRow(updatedReg, {
-        ...payment,
-        paymentId: razorpay_payment_id,
-        status: "success",
-      });
-    }
 
     return NextResponse.json({ status: "success" });
   } catch (err) {
