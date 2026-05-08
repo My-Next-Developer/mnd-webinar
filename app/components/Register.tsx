@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { LockIcon } from "./icons";
 import { Reveal } from "./Reveal";
+import { trackEvent } from "@/lib/analytics";
 
 const REGISTER_HREF = "/?step=register";
 
@@ -21,6 +24,12 @@ export function Register() {
 
             <Link
               href={REGISTER_HREF}
+              onClick={() =>
+                trackEvent("cta_clicked", {
+                  cta: "reserve_seat",
+                  location: "details_register_section",
+                })
+              }
               className="group block w-full rounded-[14px] bg-amber px-7 py-4 text-[17px] font-bold tracking-[0.005em] text-navy shadow-[0_14px_32px_-12px_rgba(255,185,21,0.6)] transition hover:-translate-y-0.5 hover:bg-amber-hover hover:shadow-[0_20px_40px_-14px_rgba(255,185,21,0.7)]"
             >
               Reserve My Spot for ₹499{" "}

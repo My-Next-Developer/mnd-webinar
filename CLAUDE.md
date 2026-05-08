@@ -66,12 +66,32 @@ Copy [.env.local.example](.env.local.example) → `.env.local` (gitignored). Req
 | `GOOGLE_SHEET_ID`, `GOOGLE_SHEET_TAB` | Target spreadsheet (share with the service account email as Editor). |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Service-account JWT credentials. The private key must be wrapped in double quotes; literal `\n` sequences are unescaped at runtime in [lib/sheets.ts](lib/sheets.ts). |
 | `DEFAULT_AMOUNT_PAISE`, `DEFAULT_CURRENCY`, `EVENT_ID` | Pricing + event id used when the client doesn't override them. `49900` paise = ₹499. |
+| `NEXT_PUBLIC_GA_ID` | GA4 measurement ID (`G-XXXXXXXXXX`). Optional — when unset, [app/layout.tsx](app/layout.tsx) skips mounting `<GoogleAnalytics />` and `trackEvent` is a no-op, so dev/CI traffic without a key never hits GA. |
 
 Razorpay's webhook target must be a public HTTPS URL — use `ngrok http 3000` (or similar) in dev and paste the tunnel URL into the Dashboard webhook config.
 
 ### Component split for the marketing page
 
-Each section under [app/components/](app/components/) is one file. Only [Nav.tsx](app/components/Nav.tsx) (scroll-listener) and [Faq.tsx](app/components/Faq.tsx) (accordion state) are client components — everything else is server-rendered. [Reveal.tsx](app/components/Reveal.tsx) is a thin client wrapper that adds a `.in` class via `IntersectionObserver` to drive the `.reveal` CSS transition; reuse it instead of re-implementing scroll-fade-in.
+Each section under [app/components/](app/components/) is one file. [Nav.tsx](app/components/Nav.tsx) (scroll-listener), [Faq.tsx](app/components/Faq.tsx) (accordion state), and [Register.tsx](app/components/Register.tsx) (analytics onClick) are client components — everything else is server-rendered. [Reveal.tsx](app/components/Reveal.tsx) is a thin client wrapper that adds a `.in` class via `IntersectionObserver` to drive the `.reveal` CSS transition; reuse it instead of re-implementing scroll-fade-in.
+
+### Analytics (Google Analytics 4)
+
+GA4 is wired up via `@next/third-parties/google`. The `<GoogleAnalytics />` component is mounted in [app/layout.tsx](app/layout.tsx) and gated on `NEXT_PUBLIC_GA_ID` — pageviews on App Router client-side navigation are emitted automatically by the component (it listens to history changes), so there is no manual `usePathname` route-change tracker.
+
+Custom events go through the typed helper in [lib/analytics.ts](lib/analytics.ts):
+
+```ts
+import { trackEvent } from "@/lib/analytics";
+trackEvent("cta_clicked", { cta: "reserve_seat", location: "details" });
+```
+
+- Event names live in the `AnalyticsEvent` union in [lib/analytics.ts](lib/analytics.ts) — **add the name to the union before calling `trackEvent` with it**, otherwise TypeScript will reject the call. This intentionally prevents typo-fragmented reports in GA4.
+- In development, `trackEvent` auto-attaches `debug_mode: true` so events surface in GA4 → Admin → DebugView without needing the browser extension.
+- When `NEXT_PUBLIC_GA_ID` is unset, `trackEvent` short-circuits to a no-op — safe to call from any code path.
+
+Existing instrumentation: quiz answer / result / CTA, register form submit + validation failures, payment initiated/succeeded/failed/cancelled, registration_completed (paid + already_paid paths), nav clicks, FAQ open/close, and the Register section CTA. Search for `trackEvent(` to see all call sites.
+
+Debug locally: DevTools → Network → filter `collect` shows each hit to `google-analytics.com/g/collect`; GA4 DebugView shows the same events server-side within a few seconds.
 
 ### Design tokens (single source of truth)
 

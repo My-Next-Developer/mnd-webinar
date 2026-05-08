@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDownIcon } from "./icons";
 import { Reveal } from "./Reveal";
+import { trackEvent } from "@/lib/analytics";
 
 const WHATSAPP_URL = "https://chat.whatsapp.com/placeholder";
 
@@ -72,8 +73,14 @@ export function Faq() {
   const toggle = (idx: number) => {
     setOpenIndices((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
+      const willOpen = !next.has(idx);
+      if (willOpen) next.add(idx);
+      else next.delete(idx);
+      trackEvent("faq_toggled", {
+        question: faqs[idx].q,
+        action: willOpen ? "open" : "close",
+        index: idx,
+      });
       return next;
     });
   };
