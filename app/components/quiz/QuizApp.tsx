@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import useSWRMutation from "swr/mutation";
+import { trackEvent } from "@/lib/analytics";
 
 const CORRECT_ANSWER: "A" | "B" = "A";
 
@@ -226,6 +227,10 @@ function ScreenChoose({ onAnswer }: { onAnswer: (c: "A" | "B") => void }) {
     if (lockRef.current) return;
     lockRef.current = true;
     setSelected(c);
+    trackEvent("quiz_answer_selected", {
+      choice: c,
+      correct: c === CORRECT_ANSWER,
+    });
     setTimeout(() => onAnswer(c), 400);
   };
 
@@ -307,6 +312,14 @@ function ScreenResult({
   variant: 2 | 3;
   onJoin: () => void;
 }) {
+  // Fire once per result-screen mount so we can measure how many users reach
+  // the "you got it right / almost" screens and which variant they saw.
+  useEffect(() => {
+    trackEvent("quiz_result_viewed", {
+      result: variant === 2 ? "correct" : "incorrect",
+    });
+  }, [variant]);
+
   return (
     <section
       className="px-4 pt-5 md:px-12 md:pt-12 lg:px-20 lg:pt-16 xl:px-28 2xl:px-40"
@@ -370,7 +383,13 @@ function ResultCta({ onJoin }: { onJoin: () => void }) {
       </div>
       <button
         type="button"
-        onClick={onJoin}
+        onClick={() => {
+          trackEvent("quiz_cta_clicked", {
+            cta: "claim_my_spot",
+            location: "quiz_result",
+          });
+          onJoin();
+        }}
         className="group flex w-full items-center justify-center gap-2 rounded-lg bg-amber px-5 py-4 text-center text-[14px] font-semibold leading-[1.3] tracking-[0.01em] text-navy shadow-[0_10px_24px_-10px_rgba(255,185,21,0.55)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-10px_rgba(255,185,21,0.65)] sm:whitespace-nowrap md:text-[16px] md:py-[18px]"
       >
         <span>Claim My Spot — Register for Free, Pay Later</span>
@@ -677,12 +696,17 @@ function ScreenRegister({
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setShowError(true);
+      trackEvent("register_form_validation_failed", {
+        invalid_fields: Object.keys(newErrors).join(","),
+        invalid_count: Object.keys(newErrors).length,
+      });
       return;
     }
 
     setShowError(false);
     setSubmitError(null);
     setSubmitting(true);
+    trackEvent("register_form_submitted", { age });
 
     try {
       const surveyAnswers = Object.fromEntries(
@@ -698,12 +722,24 @@ function ScreenRegister({
       });
 
       if (reg.paymentStatus === "success") {
+        // User had already completed payment in a prior session — treat the
+        // duplicate-registration short-circuit as a completed conversion.
+        trackEvent("registration_completed", {
+          path: "already_paid",
+          registration_id: reg.registrationId,
+        });
         onSuccess();
         return;
       }
 
       const order = await triggerCreateOrder({
         registrationId: reg.registrationId,
+      });
+
+      trackEvent("payment_initiated", {
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
       });
 
       if (typeof window === "undefined" || !window.Razorpay) {
@@ -724,17 +760,39 @@ function ScreenRegister({
             try {
               const verified = await triggerVerify(resp);
               if (verified.status === "success") {
+                trackEvent("payment_succeeded", {
+                  order_id: order.orderId,
+                  payment_id: resp.razorpay_payment_id,
+                  amount: order.amount,
+                  currency: order.currency,
+                });
+                trackEvent("registration_completed", {
+                  path: "paid",
+                  registration_id: reg.registrationId,
+                });
                 resolve();
                 onSuccess();
               } else {
+                trackEvent("payment_failed", {
+                  order_id: order.orderId,
+                  reason: "verification_failed",
+                });
                 reject(new Error("Payment verification failed."));
               }
             } catch (err) {
+              trackEvent("payment_failed", {
+                order_id: order.orderId,
+                reason:
+                  err instanceof Error ? err.message : "verify_exception",
+              });
               reject(err instanceof Error ? err : new Error(String(err)));
             }
           },
           modal: {
-            ondismiss: () => reject(new Error("Payment cancelled.")),
+            ondismiss: () => {
+              trackEvent("payment_cancelled", { order_id: order.orderId });
+              reject(new Error("Payment cancelled."));
+            },
           },
         });
         rzp.open();

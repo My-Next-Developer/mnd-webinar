@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
   title: "AI for Every Woman — MyNextDevelopers",
@@ -32,6 +35,7 @@ export default function RootLayout({
           strategy="lazyOnload"
         />
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }
