@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { WhatsAppIcon } from "./icons";
 import { trackEvent } from "@/lib/analytics";
 
-const WHATSAPP_URL = "https://chat.whatsapp.com/placeholder";
+const WHATSAPP_URL = "https://chat.whatsapp.com/LLrVLgeEjFYFZxzygp7tyA";
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
