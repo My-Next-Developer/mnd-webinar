@@ -5,7 +5,7 @@ import { ChevronDownIcon } from "./icons";
 import { Reveal } from "./Reveal";
 import { trackEvent } from "@/lib/analytics";
 
-const WHATSAPP_URL = "https://chat.whatsapp.com/placeholder";
+const WHATSAPP_URL = "https://chat.whatsapp.com/LLrVLgeEjFYFZxzygp7tyA";
 
 type FaqItem = { q: string; a: ReactNode };
 
