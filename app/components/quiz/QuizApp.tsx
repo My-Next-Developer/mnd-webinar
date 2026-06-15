@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import useSWRMutation from "swr/mutation";
+import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 
 const CORRECT_ANSWER: "A" | "B" = "A";
@@ -624,9 +625,7 @@ function ScreenRegister({
   onBack: () => void;
   onSuccess: () => void;
 }) {
-  const [showError, setShowError] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pillSelections, setPillSelections] = useState<SelectedMap>(() =>
     Object.fromEntries(questions.map((q) => [q.id, new Set<string>()]))
@@ -695,7 +694,7 @@ function ScreenRegister({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setShowError(true);
+      toast.error("Please complete the highlighted fields.");
       trackEvent("register_form_validation_failed", {
         invalid_fields: Object.keys(newErrors).join(","),
         invalid_count: Object.keys(newErrors).length,
@@ -703,8 +702,6 @@ function ScreenRegister({
       return;
     }
 
-    setShowError(false);
-    setSubmitError(null);
     setSubmitting(true);
     trackEvent("register_form_submitted", { age });
 
@@ -722,13 +719,12 @@ function ScreenRegister({
       });
 
       if (reg.paymentStatus === "success") {
-        // User had already completed payment in a prior session — treat the
-        // duplicate-registration short-circuit as a completed conversion.
-        trackEvent("registration_completed", {
-          path: "already_paid",
+        trackEvent("registration_duplicate_blocked", {
           registration_id: reg.registrationId,
         });
-        onSuccess();
+        toast.error(
+          "You're already registered for this session with this email or phone number. Check your WhatsApp and email for your seat details — no need to register again."
+        );
         return;
       }
 
@@ -798,9 +794,7 @@ function ScreenRegister({
         rzp.open();
       });
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Something went wrong."
-      );
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -836,17 +830,6 @@ function ScreenRegister({
           lock in your spot at this price.
         </div>
       </div>
-
-      {showError && (
-        <div className="mb-3 rounded-lg border-l-[3px] border-amber bg-[#fff4e0] px-3 py-2.5 text-[13px] text-[#8a5a00]">
-          Please complete the highlighted fields.
-        </div>
-      )}
-      {submitError && (
-        <div className="mb-3 rounded-lg border-l-[3px] border-[#e07b00] bg-[#fde8d8] px-3 py-2.5 text-[13px] text-[#8a3a00]">
-          {submitError}
-        </div>
-      )}
 
       <form onSubmit={onSubmit} noValidate>
         <div className="md:grid md:grid-cols-2 md:gap-x-4">
