@@ -28,6 +28,28 @@ export async function POST(request: Request) {
       updatedAt: now,
     };
 
+    // Block re-registration when this email OR phone has already PAID for the
+    // event. Pending/failed registrations fall through so abandoned-checkout
+    // users can still complete payment. Phone is matched on its last 10 digits
+    // so +91 / 91 prefixes don't cause false misses.
+    const phoneDigits = doc.phone.replace(/\D/g, "").slice(-10);
+    const dedupeClauses: Record<string, unknown>[] = [{ email: doc.email }];
+    if (phoneDigits.length === 10) {
+      dedupeClauses.push({ phone: { $regex: `${phoneDigits}$` } });
+    }
+    const alreadyPaid = await col.findOne({
+      eventId,
+      paymentStatus: "success",
+      $or: dedupeClauses,
+    });
+    if (alreadyPaid?._id) {
+      return NextResponse.json({
+        registrationId: alreadyPaid._id.toString(),
+        paymentStatus: "success",
+        alreadyRegistered: true,
+      });
+    }
+
     try {
       const result = await col.insertOne(doc);
       return NextResponse.json({

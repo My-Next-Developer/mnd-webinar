@@ -51,6 +51,7 @@ export type AnalyticsEvent =
   | "payment_failed"
   | "payment_cancelled"
   | "registration_completed"
+  | "registration_duplicate_blocked"
   // Marketing page interactions
   | "nav_link_clicked"
   | "cta_clicked"

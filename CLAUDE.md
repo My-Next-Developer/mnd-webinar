@@ -31,11 +31,13 @@ The quiz at `/` is the entry point. Its result screens link to `/details` via a 
 
 `ScreenRegister.onSubmit` runs the full register → pay → verify flow via SWR mutations: `POST /api/register` → `POST /api/create-order` → open Razorpay Checkout (with `prefill: { name, email, contact }`) → `POST /api/verify-payment` in the checkout `handler` callback → `router.push("/confirmed")`. The Razorpay key id is returned by `/api/create-order` (no `NEXT_PUBLIC_*` mirror needed). Email is required because the unique index and payment receipts depend on it.
 
+If `/api/register` reports the email/phone already paid (`paymentStatus === "success"`), `onSubmit` short-circuits **before** payment — it fires `registration_duplicate_blocked` and shows an "already registered" toast instead of routing to `/confirmed`. All user-facing errors in this flow (validation, already-registered, payment failed/cancelled, generic) surface as **sonner toasts**, not inline banners — see the Toasts section below.
+
 ### Backend API
 
 Route Handlers under [app/api/](app/api/) — all `runtime = "nodejs"` (Razorpay SDK + mongodb native driver are not edge-compatible).
 
-- `POST /api/register` — validates input, inserts into `event_registrations` with `paymentStatus: "pending"`. On duplicate `{email, eventId}` (E11000) returns the existing `registrationId` rather than 409 (idempotent for back-button users).
+- `POST /api/register` — validates input. First it blocks re-registration when this **email OR phone** already has a `paymentStatus: "success"` row for the event (phone matched on its last 10 digits, so `+91`/`91` prefixes don't cause false misses) — returns the existing registration with `alreadyRegistered: true`. Only *paid* rows block; pending/failed fall through so abandoned-checkout users can still pay. Otherwise it inserts a new `event_registrations` doc with `paymentStatus: "pending"`. On a duplicate-email E11000 it returns the existing `registrationId` rather than 409 (idempotent for back-button users). Note: phone uniqueness is best-effort — an app-level check against paid rows only, not a DB index, so it's racy. Only `{email, eventId}` is enforced unique by Mongo.
 - `POST /api/create-order` — creates a Razorpay order (with `notes` carrying `registrationId`, `eventId`, `email`, `contact`, `name`), inserts a `payments` doc with `status: "created"`, returns `{ orderId, amount, currency, keyId }` to the client.
 - `POST /api/verify-payment` — HMAC-SHA256 verifies `orderId|paymentId` against `razorpay_signature` using `crypto.timingSafeEqual`. On success: marks both collections `success`, fires `appendRegistrationRow` (fire-and-forget, never awaited). The signature itself is *not* persisted — once verified it has no further use.
 - `POST /api/webhook` — reads the raw body via `await request.text()` *before* JSON.parse so the HMAC matches Razorpay's signed bytes; handles `payment.captured` and `payment.failed` idempotently (filtered updates with `$ne: "success"` so re-deliveries are no-ops).
@@ -89,9 +91,13 @@ trackEvent("cta_clicked", { cta: "reserve_seat", location: "details" });
 - In development, `trackEvent` auto-attaches `debug_mode: true` so events surface in GA4 → Admin → DebugView without needing the browser extension.
 - When `NEXT_PUBLIC_GA_ID` is unset, `trackEvent` short-circuits to a no-op — safe to call from any code path.
 
-Existing instrumentation: quiz answer / result / CTA, register form submit + validation failures, payment initiated/succeeded/failed/cancelled, registration_completed (paid + already_paid paths), nav clicks, FAQ open/close, and the Register section CTA. Search for `trackEvent(` to see all call sites.
+Existing instrumentation: quiz answer / result / CTA, register form submit + validation failures, payment initiated/succeeded/failed/cancelled, registration_completed (paid path), registration_duplicate_blocked (email/phone already paid), nav clicks, FAQ open/close, and the Register section CTA. Search for `trackEvent(` to see all call sites.
 
 Debug locally: DevTools → Network → filter `collect` shows each hit to `google-analytics.com/g/collect`; GA4 DebugView shows the same events server-side within a few seconds.
+
+### Toasts (user-facing errors)
+
+Client-side errors are surfaced as toasts via [`sonner`](https://sonner.emilkowal.ski/), not inline banners. The `<Toaster position="top-center" richColors closeButton />` is mounted once in [app/layout.tsx](app/layout.tsx) (a client component inside the server layout — that boundary is fine), so `toast.error(...)` works from any client component on any route. The quiz register flow ([QuizApp.tsx](app/components/quiz/QuizApp.tsx)) routes all of its errors through `toast.error` — there is no longer a top-of-form error banner or `submitError`/`showError` state; invalid fields still get red highlighting via the `errors` state. `richColors` uses sonner's default red palette (not the brand tokens) — if brand-matching is needed, override via `toastOptions`/CSS vars on the `<Toaster>`.
 
 ### Design tokens (single source of truth)
 
