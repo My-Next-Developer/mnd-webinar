@@ -37,7 +37,7 @@ type Question = {
 const questions: Question[] = [
   {
     id: "q1",
-    title: "How familiar are you with AI tools like ChatGPT or Google Gemini?",
+    title: "How familiar are you with AI tools like ChatGPT, Google Gemini or Claude?",
     multi: false,
     options: [
       { value: "never", label: "I've never used any AI tool" },
@@ -78,6 +78,7 @@ const questions: Question[] = [
     options: [
       { value: "chatgpt", label: "ChatGPT" },
       { value: "gemini", label: "Google Gemini" },
+      { value: "claude", label: "Claude" },
       { value: "siri", label: "Siri" },
       { value: "alexa", label: "Alexa" },
       { value: "gassistant", label: "Google Assistant" },
@@ -550,7 +551,7 @@ function InfoGrid() {
         }
       />
       <InfoCard
-        title="ChatGPT + Gemini"
+        title="ChatGPT + Gemini + Claude"
         sub="Hands-on with real tools"
         icon={
           <>
@@ -819,8 +820,8 @@ function ScreenRegister({
         <p className="m-0 mb-2.5 text-sm leading-[1.55] text-[#444443] md:text-[15px] md:leading-[1.6]">
           This is a live online session by MyNextDeveloper on 17th July, 2026
           from 4:00 PM to 5:15 PM. Join from your phone or laptop, no
-          downloads needed. We will teach you how to use AI tools like ChatGPT
-          and Google Gemini — no tech background needed at all. Fill in your
+          downloads needed. We will teach you how to use AI tools like ChatGPT,
+          Google Gemini and Claude — no tech background needed at all. Fill in your
           details and we will send the session link to your WhatsApp or Email
           before the event.
         </p>
