@@ -12,22 +12,32 @@ type Tool = {
 const tools: Tool[] = [
   {
     title: "ChatGPT",
-    description: "Writing, planning, brainstorming — your everyday thinking partner.",
+    description:
+      "Writing, planning, brainstorming — your everyday thinking partner.",
     image: { src: "/assets/chatgpt.png", alt: "ChatGPT logo" },
   },
   {
     title: "Google Gemini",
-    description: "Research, summaries, and quick answers inside tools you already use.",
+    description:
+      "Research, summaries, and quick answers inside tools you already use.",
     image: { src: "/assets/gemini.png", alt: "Google Gemini logo" },
   },
   {
+    title: "Claude",
+    description:
+      "Smarter conversations, document decoding and knowing how to get the most out of it — without hitting your free limit.",
+    image: { src: "/assets/claude.png", alt: "Claude logo" },
+  },
+  {
     title: "AI Image Tools",
-    description: "Turn ideas into visuals — posters, posts, moodboards, and more.",
+    description:
+      "Turn ideas into visuals — posters, posts, moodboards, and more.",
     emoji: "🎨",
   },
   {
     title: "Everyday AI",
-    description: "Small automations and tricks that quietly save hours every week.",
+    description:
+      "Small automations and tricks that quietly save hours every week.",
     emoji: "🪄",
   },
 ];
@@ -64,7 +74,7 @@ export function About() {
               begin.
             </p>
             <p>
-              We&apos;ll walk through ChatGPT and Google Gemini in a way
+              We&apos;ll walk through ChatGPT, Google Gemini and Claude in a way
               that&apos;s practical and immediately useful — from writing better
               prompts, changing tone and style, brainstorming ideas, summarising
               long content, generating images, and using AI directly inside
