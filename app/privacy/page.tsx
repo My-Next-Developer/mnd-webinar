@@ -693,7 +693,23 @@ export default function PrivacyPage() {
             </p>
           </Section>
 
-          <Section id="46" title="Contact for Webinar Data Queries">
+          <Section id="46" title="Refund &amp; Cancellation Policy">
+            <ul className="my-2 list-disc pl-5 space-y-1">
+              <li>Cancellations are accepted up to 5 days before the event; requests after that are not eligible for a refund</li>
+              <li>Payment gateway charges are non-refundable. Only the balance amount is refunded</li>
+              <li>Approved refunds are processed within 7–10 business days (time to reflect depends on your bank)</li>
+              <li>Refunds go back to the original payment method</li>
+            </ul>
+            <p>
+              To cancel and request a refund, email{" "}
+              <a href="mailto:ops@mynextdeveloper.com" className="link">
+                ops@mynextdeveloper.com
+              </a>{" "}
+              before the cancellation deadline.
+            </p>
+          </Section>
+
+          <Section id="47" title="Contact for Webinar Data Queries">
             <address className="not-italic">
               <strong className="text-navy">Email:</strong>{" "}
               <a href="mailto:ops@mynextdeveloper.com" className="link">
